@@ -20,6 +20,9 @@
 # This utillity cuts $amount_of_parts parts from $amount_of_parts video files and concatenates them in one result
 # For working utility uses ffmpeg, mplayer2, melt, mencoder, exiftool, mkvmerge and MP4Box, which is part of gpac on Debian.
 
+#TODO 1. work with command line options
+#     2. 
+
 use warnings; 
 use strict;
 use Time::HiRes qw(time gettimeofday);
@@ -319,30 +322,30 @@ sub Duration
 
 }
 
-
-sub Duration
-{
-    my $file = shift;
-    $duration = undef;	
-    if(package_status("mplayer2"))	# check status for mplayer
-        {
-            write_to_output("Found mplayer.");
-            $duration = `mplayer -identify -frames 0 -vo null -ao null -nosound "$file" 2>&1 | grep ID_LENGTH | cut -d "=" -f2 `; # get video full duration by mplayer
-            $duration = clean($duration);
-            write_to_output("Found file $file with total seconds length $duration");
-            $duration = translate_seconds_to_time_format($duration);
-        }
-    elsif(package_status("libimage-exiftool-perl")) 	# check status for exiftool
-        {
-            write_to_output("Found exiftool.");
-            $duration = `exiftool "$file" 2>/dev/null | grep Duration | cut -d ":" -f2,3,4`;
-        }	
-    $duration = `ffmpeg -i "$file" -vcodec copy -acodec copy -f null - 2>&1 | grep Duration | cut -d "," -f1` if( not defined $duration);		# get video full duration by ffmpeg					
-    $duration = clean($duration);						
-    write_to_output("File $file formated $duration");
-    return $duration;
-
-}
+# ??? Seadare zedas
+# sub Duration
+# {
+#     my $file = shift;
+#     $duration = undef;	
+#     if(package_status("mplayer2"))	# check status for mplayer
+#         {
+#             write_to_output("Found mplayer.");
+#             $duration = `mplayer -identify -frames 0 -vo null -ao null -nosound "$file" 2>&1 | grep ID_LENGTH | cut -d "=" -f2 `; # get video full duration by mplayer
+#             $duration = clean($duration);
+#             write_to_output("Found file $file with total seconds length $duration");
+#             $duration = translate_seconds_to_time_format($duration);
+#         }
+#     elsif(package_status("libimage-exiftool-perl")) 	# check status for exiftool
+#         {
+#             write_to_output("Found exiftool.");
+#             $duration = `exiftool "$file" 2>/dev/null | grep Duration | cut -d ":" -f2,3,4`;
+#         }	
+#     $duration = `ffmpeg -i "$file" -vcodec copy -acodec copy -f null - 2>&1 | grep Duration | cut -d "," -f1` if( not defined $duration);		# get video full duration by ffmpeg					
+#     $duration = clean($duration);						
+#     write_to_output("File $file formated $duration");
+#     return $duration;
+# 
+# }
 
 sub third_colon_2_dot
 {
@@ -393,7 +396,7 @@ sub cut_from_file
 		}
 	else
 		{
-			# if($debug) 	# getting duration can take a lot of time
+			 if($debug) 	# getting duration can take a lot of time
 				{
 					Duration($first_file) if($verbose);					
 				}			
