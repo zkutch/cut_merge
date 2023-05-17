@@ -21,7 +21,7 @@
 # For working utility uses ffmpeg, mplayer2, melt, mencoder, exiftool, mkvmerge and MP4Box, which is part of gpac on Debian.
 
 #TODO 1. work with command line options
-#     2. 
+#     2. log file
 
 use warnings; 
 use strict;
