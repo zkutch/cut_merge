@@ -21,7 +21,7 @@
 # For working utility uses ffmpeg, mplayer2, melt, mencoder, exiftool, mkvmerge and MP4Box, which is part of gpac on Debian.
 
 #TODO 1. work with command line options
-#     2. log file
+#     2. 
 
 use warnings; 
 use strict;
@@ -92,13 +92,39 @@ my %dpkg_status = ( 			# http://www.fifi.org/doc/libapt-pkg-doc/dpkg-tech.html/c
 	
 print "\n" if($verbose);
 write_to_output("Start working.") if($verbose);
+
+my $log_enable = 1;
+my $log_file = cwd()."/cut_merge.log";
+
+if( -f $log_file )
+    {
+        if( -w $log_file )
+        {
+            open(FH_log,  ">>", $log_file) or (print "Problem with appending  $log_file. Error ".$! and $log_enable = 0);
+            
+        }
+        else
+        {
+            write_to_output("$log_file is not writable, so log will not be written.") if($verbose);
+            $log_enable = 0;
+        }
+        
+    }
+else
+    {
+        open(FH_log,  ">", $log_file) or (print "Problem with creating  $log_file. Error ".$! and $log_enable = 0);
+    }
+write_to_log("Start working.") if($log_enable);
+
 if(package_status("ffmpeg")) 	#check status of ffmpeg
 	{
 		write_to_output("Found ffmpeg.");
+		write_to_log("Found ffmpeg.") if($log_enable);
 	}
 else
 	{
 		write_to_output("Not found ffmpeg. Exiting.");
+		write_to_log("Not found ffmpeg. Exiting.") if($log_enable);
 		goto END;
 	}
 
@@ -108,10 +134,12 @@ $amount_of_parts = clean($amount_of_parts);
 if ( $amount_of_parts =~ /$natural_number_regex/ )
 	{
 		write_to_output("Firstly we should cut $amount_of_parts parts.") if($verbose);
+		write_to_log("Firstly we should cut $amount_of_parts parts.") if($log_enable);
 	}
 else
 	{
 		write_to_output("Entered $amount_of_parts is not natural number. Exiting.")  if($verbose);
+		write_to_log("Entered $amount_of_parts is not natural number. Exiting.") if($log_enable);
 		goto END;
 	}
 $result_file = $amount_of_parts + 1;
@@ -125,7 +153,8 @@ eval
 		}
 	if($amount_of_parts==1)			# finish program if only 1 video file is given
 		{
-			write_to_output("Nothing to merging.");
+			write_to_output("Nothing to merging.")  if($verbose);
+			write_to_log("Nothing to merging.") if($log_enable);
 			goto END;
 		}		
 	for (my $i = 1; $i <= $amount_of_parts; $i++)		# check if in extensions array we have different ones, so merge need rendering
@@ -133,7 +162,8 @@ eval
 			my $m = grep {$_ eq "$extension[$i]"} @extension; 			
 			if ( $m != $#extension  )
 				{
-					write_to_output("Found mixed extensions in choosed files. Merge should use rendering and, possibly, take some time. ");
+					write_to_output("Found mixed extensions in choosed files. Merge should use rendering and, possibly, take some time. ")  if($verbose);
+					write_to_log("Found mixed extensions in choosed files. Merge should use rendering and, possibly, take some time.") if($log_enable);
 					@melt_formats = `melt -query "formats" 2>/dev/null `;
 					chomp @melt_formats;
 					shift @melt_formats for 1..2 ;	
@@ -144,14 +174,18 @@ eval
 						}
 					print "melt_formats have ".($#melt_formats+1)." units.\n" if($debug);
 					print "@melt_formats \n"  if($debug);
+					write_to_log("melt_formats have ".($#melt_formats+1)." units.\n") if($log_enable and $debug);
+					write_to_log("@melt_formats \n") if($log_enable and $debug);
 					if(package_status("melt") and  ((grep {".$_" eq "$extension[$#extension]"} @melt_formats) > 0 )) 	#check status of melt
 						{
-							write_to_output("Found melt.");
+							write_to_output("Found melt.") if($verbose) ;
+							write_to_log("Found melt.") if($log_enable);
 							melt_rendering();
 						}
 					else
 						{
-							write_to_output("Not found melt. Exiting.");
+							write_to_output("Not found melt. Exiting.")  ;
+							write_to_log("Found melt.") if($log_enable);
 							goto END;
 						}					
 				}			
@@ -176,6 +210,8 @@ eval
 			@MP4Box_formats = uniq @MP4Box_formats;	
 			print "MP4Box formats have ".($#MP4Box_formats+1)." units.\n" if($debug);
 			print "@MP4Box_formats\n"  if($debug);
+			write_to_log("MP4Box formats have ".($#MP4Box_formats+1)." units.\n") if($log_enable and $debug);
+			write_to_log("@MP4Box_formats\n") if($log_enable and $debug);
 		}	
 	
 	if (package_status("mkvtoolnix"))
@@ -193,7 +229,9 @@ eval
 				}
 			@mkvmerge_formats = uniq @mkvmerge_formats ;
 			print "mkvmerge formats have ".($#mkvmerge_formats+1)." units.\n" if($debug);
-			print "@mkvmerge_formats\n"  if($debug);	
+			print "@mkvmerge_formats\n"  if($debug);
+			write_to_log("mkvmerge formats have ".($#mkvmerge_formats+1)." units.\n") if($log_enable and $debug);
+			write_to_log("@mkvmerge_formats\n") if($log_enable and $debug);
 			# foreach (0..$#mkvmerge_formats)
 				# {print "member[$_] = $mkvmerge_formats[$_]\n";}
 		}
@@ -214,6 +252,8 @@ eval
 	@ffmpeg_formats = uniq @ffmpeg_formats;	
 	print "ffmpeg formats have ".($#ffmpeg_formats+1)." units.\n" if($debug);
 	print "@ffmpeg_formats\n"  if($debug);	
+	write_to_log("ffmpeg formats have ".($#ffmpeg_formats+1)." units.\n") if($log_enable and $debug);
+	write_to_log("@ffmpeg_formats\n") if($log_enable and $debug);
 	
  # FORMATS
  
@@ -224,8 +264,9 @@ eval
 	# $out = `ffmpeg -formats 2>/dev/null  | grep "concat"`;
 	if( $m > 0  and  ((grep {".$_" eq "$extension[$#extension]"} @ffmpeg_formats) > 0 ) )
 		{
-			write_to_output("Found ffmpeg format concat. Try to use for merging.")  if($verbose);			
-			open($fd, ">", "$dir/$temp_file") or (write_to_output("Cannot write to $dir/$temp_file, error is: $!. Exiting.") and goto END);
+			write_to_output("Found ffmpeg format concat. Try to use for merging.")  if($verbose);
+			write_to_log("Found ffmpeg format concat. Try to use for merging.") if($log_enable);
+			open($fd, ">", "$dir/$temp_file") or (( write_to_output("Cannot write to $dir/$temp_file, error is: $!. Exiting.")  and (write_to_log("Cannot write to $dir/$temp_file, error is: $!. Exiting.") and $log_enable) ) and goto END);
 				for (my $i = 1; $i <= $amount_of_parts; $i++)		# cycle through chosen files and prepare format file
 					{						
 						print $fd "file "."'"."$i$extension[$i]"."'\n";		
@@ -235,7 +276,8 @@ eval
 		}
 	elsif ( package_status("mencoder") and  ((grep {".$_" eq "$extension[$#extension]"} @mencoder_formats) > 0 ) )	# check for mencoder
 				{					
-					write_to_output("Found mencoder.")  if($verbose);					
+					write_to_output("Found mencoder.")  if($verbose);
+					write_to_log("Found mencoder.") if($log_enable);
 					$merge_command = "mencoder -ovc copy -oac pcm -o $dir/$result_file$extension[$#extension] ";
 					for (my $i = 1; $i <= $amount_of_parts; $i++)		# cycle through chosen files and prepare merge command
 						{							
@@ -246,6 +288,7 @@ eval
 	elsif ( $#MP4Box_formats >-1  and  ((grep {"$_" eq "$extension[$#extension]"} @MP4Box_formats) > 0 ))	# check status for MP4Box
 				{					
 					write_to_output("Found gpac for MP4Box.")  if($verbose);
+					write_to_log("Found gpac for MP4Box.") if($log_enable);
 					$merge_command = "MP4Box -add ";
 					for (my $i = 1; $i <= $amount_of_parts; $i++)		# cycle through chosen files and prepare merge command
 						{							 
@@ -257,6 +300,7 @@ eval
 	elsif ( $#mkvmerge_formats > -1 and  ((grep {".$_" eq "$extension[$#extension]"} @mkvmerge_formats) > 0 ) )	# check for mkvmerge
 			{
 				write_to_output("Found mkvmerge.")  if($verbose);
+				write_to_log("Found mkvmerge.") if($log_enable);
 				$merge_command = "mkvmerge -o $dir/$result_file".$extension[$#extension];
 				for (my $i = 1; $i <= $amount_of_parts; $i++)		# cycle through chosen files and prepare merge command
 					{							
@@ -269,33 +313,40 @@ eval
 	else
 		{
 			write_to_output("No more methods for merging.")  if($verbose);
+			write_to_log("No more methods for merging.") if($log_enable);
 			goto END;
 		}		
 #BRAIN		
 	unlink("$dir/$result_file$extension[$#extension]" ) if( -f "$dir/$result_file$extension[$#extension]" );
 FINISH:
 	write_to_output("$merge_command")  if($verbose);
+	write_to_log("$merge_command") if($log_enable);
 	$out = `$merge_command`;
 	unlink("$dir/$temp_file" ) if( -f "$dir/$temp_file" );		
 	
 	if( -f "$dir/$result_file$extension[$#extension]" )
 		{
 			write_to_output("Successfully concatenated to file $dir/$result_file$extension[$#extension].")  if($verbose);
+			write_to_log("Successfully concatenated to file $dir/$result_file$extension[$#extension].") if($log_enable);
 		}
 	else
 		{
 			write_to_output("Problem with file $dir/$result_file$extension[$#extension]. Output is $out. Exiting.")  if($verbose);
+			write_to_log("Problem with file $dir/$result_file$extension[$#extension]. Output is $out. Exiting.") if($log_enable);
 			goto END;
 		}
 };
  if($@)
 	{
 		write_to_output("Error for whole cut-merging process is: ".$@."Exiting.");
+		write_to_log("Error for whole cut-merging process is: ".$@."Exiting.") if($log_enable);
 		goto END;
 	}
 
 END: write_to_output("Finish working")  if($verbose);
+write_to_log("Finish working.\n") if($log_enable);
 print "\n" if($verbose);
+close FH_log;
 
 
 sub Duration
@@ -305,19 +356,23 @@ sub Duration
     if(package_status("mplayer2"))	# check status for mplayer
         {
             write_to_output("Found mplayer.");
+            write_to_log("Found mplayer.") if($log_enable);
             $duration = `mplayer -identify -frames 0 -vo null -ao null -nosound "$file" 2>&1 | grep ID_LENGTH | cut -d "=" -f2 `; # get video full duration by mplayer
             $duration = clean($duration);
             write_to_output("Found file $file with total seconds length $duration");
+            write_to_log("Found file $file with total seconds length $duration") if($log_enable);
             $duration = translate_seconds_to_time_format($duration);
         }
     elsif(package_status("libimage-exiftool-perl")) 	# check status for exiftool
         {
             write_to_output("Found exiftool.");
+            write_to_log("Found exiftool.") if($log_enable);
             $duration = `exiftool "$file" 2>/dev/null | grep Duration | cut -d ":" -f2,3,4`;
         }	
     $duration = `ffmpeg -i "$file" -vcodec copy -acodec copy -f null - 2>&1 | grep Duration | cut -d "," -f1` if( not defined $duration);		# get video full duration by ffmpeg					
     $duration = clean($duration);						
     write_to_output("File $file formated $duration");
+    write_to_log("File $file formated $duration") if($log_enable);
     return $duration;
 
 }
@@ -388,10 +443,12 @@ sub cut_from_file
 	my $order_number = shift;
 	write_to_output("Enter ".CYAN."$order_number video file path,".RESET." please.");
 	$first_file = <STDIN>;
-	$first_file = clean($first_file);	
+	$first_file = clean($first_file);
+	write_to_log("Video file path $first_file") if($log_enable);
 	if( not (-f  "$first_file"))
 		{
 			write_to_output("There is no file $first_file. Exiting");
+			write_to_log("There is no file $first_file. Exiting") if($log_enable);
 			goto END;
 		}
 	else
@@ -403,18 +460,22 @@ sub cut_from_file
 		}
 	write_to_output("Enter ".RED."starting time for $order_number".RESET." video file, please.");	
 	$start_time = <STDIN>;
-	$start_time = clean($start_time);		
+	$start_time = clean($start_time);
+	write_to_log("Starting time $start_time") if($log_enable);
 	unless( $start_time =~ /$time_regex/ ) 
 		{
 			write_to_output("Starting time should be in HOUR:MINUTES:SECONDS.MILLISECONDS format. Exiting");
+			write_to_log("Starting time should be in HOUR:MINUTES:SECONDS.MILLISECONDS format in place of $start_time. Exiting") if($log_enable);
 			goto END;
 		}
 	write_to_output("Enter ".MAGENTA."time interval for  $order_number".RESET." video file, please.");
 	$time_interval = <STDIN>;	
 	$time_interval = clean($time_interval);
+	write_to_log("Time interval $time_interval") if($log_enable);
 	unless( $time_interval =~ /$time_regex/ ) 
 		{
 			write_to_output("Time interval should be in HOUR:MINUTES:SECONDS.MILLISECONDS format. Exiting");
+			write_to_log("Starting interval should be in HOUR:MINUTES:SECONDS.MILLISECONDS format in place of $time_interval. Exiting") if($log_enable);
 			goto END;
 		}
 	($base_name, $parent_dir, $extension[$order_number]) = fileparse("$first_file", qr/\.[^.]*$/);
@@ -437,6 +498,7 @@ sub cut_from_file
     #1) -ss -i -t
 	
 	write_to_output("ffmpeg -ss ".$start_time." -i  ".$first_file."  -vcodec copy -acodec copy -t ".$time_interval." $dir/$order_number$extension[$order_number] 2>/dev/null");
+	write_to_log("ffmpeg -ss ".$start_time." -i  ".$first_file."  -vcodec copy -acodec copy -t ".$time_interval." $dir/$order_number$extension[$order_number] 2>/dev/null") if($log_enable);
 	my $out = `ffmpeg -ss "$start_time" -i  "$first_file" -t "$time_interval" -vcodec copy -acodec copy $dir/$order_number$extension[$order_number] 2>/dev/null `;
 	
 # 	2) -t -i -ss     output 00:00:00.00
@@ -480,12 +542,15 @@ sub cut_from_file
 	
 	
 	write_to_output("ffmpeg output is $out.")  if($out ne "" and $verbose);
+	write_to_log("ffmpeg output is $out.") if($out ne "" and $log_enable);
 	if( -f "$dir/$order_number$extension[$order_number]" )
 		{
             if($verbose)
             {
                 write_to_output("Successfully processed file $order_number.") ;
-                Duration("$dir/$order_number$extension[$order_number]");
+                write_to_log("Successfully processed file $order_number.") if($log_enable);
+                # qveda ra saWiro iyo?
+                #Duration("$dir/$order_number$extension[$order_number]");
 #                 $duration = `ffmpeg -i "$dir/$order_number$extension[$order_number]" -vcodec copy -acodec copy -f null - 2>&1 | grep Duration | cut -d "," -f1`;		# get duration by ffmpeg					
 #                 $duration = clean($duration);						
 #                 write_to_output("File "."$order_number$extension[$order_number]"." $duration");
@@ -495,7 +560,8 @@ sub cut_from_file
 		{
             
             {
-                write_to_output("Problem with file $order_number. Output for ffmpeg is $out. Exiting.") if($verbose);                
+                write_to_output("Problem with file $order_number. Output for ffmpeg is $out. Exiting.") if($verbose);  
+                write_to_log("Problem with file $order_number. Output for ffmpeg is $out. Exiting.") if($log_enable);
                 goto END;
 			}
 		}
@@ -522,6 +588,12 @@ sub write_to_output
 	my $message = shift;
 	print my_time()."\t".$message."\n"  if($verbose);
 }
+sub write_to_log
+{
+	my $message = shift;
+	print FH_log my_date().my_time()."\t".$message."\n" ;
+}
+
 
 sub my_time
 {
@@ -530,7 +602,7 @@ sub my_time
 
 sub my_date
 {
-	return strftime "%d\.%m\.%Y", localtime;
+	return strftime "%a %b %d ", localtime;
 }
 
 sub package_status
@@ -570,11 +642,13 @@ sub package_status
 											last;
 										}
 								}
-							write_to_output("For package $package we have status: $status. \n\t\tPackage selection state is: $sami[0]. \n\t\tPackage error flag is: $sami[1]. \n\t\tPackage state is: $sami[2].") if($debug);	
+							write_to_output("For package $package we have status: $status. \n\t\tPackage selection state is: $sami[0]. \n\t\tPackage error flag is: $sami[1]. \n\t\tPackage state is: $sami[2].") if($debug);
+							write_to_log("For package $package we have status: $status. \n\t\tPackage selection state is: $sami[0]. \n\t\tPackage error flag is: $sami[1]. \n\t\tPackage state is: $sami[2].") if($log_enable and $debug);
 						}
 					else
 						{
 							write_to_output("Unknown output for dpkg -s $package: $status.");
+							write_to_log("Unknown output for dpkg -s $package: $status.") if($log_enable);
 							return 0;
 						}
 					last;
