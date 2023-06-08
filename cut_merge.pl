@@ -434,6 +434,7 @@ sub clean
 	chomp $item;
 	$item =~ s/^\s+|\s+$//g; # Trim spaces
 	$item =~ s/^'|^"|"$|'$//g; # Trim quotation
+	$item =~ s/('\\'')/'/g;
 	# print "item is $item\n";
 	return $item;
 }
@@ -443,9 +444,9 @@ sub cut_from_file
 	my $order_number = shift;
 	write_to_output("Enter ".CYAN."$order_number video file path,".RESET." please.");
 	$first_file = <STDIN>;
-	$first_file = clean($first_file);
+	$first_file = clean($first_file);	
 	write_to_log("Video file path $first_file") if($log_enable);
-	if( not (-f  "$first_file"))
+	if( not (-f  $first_file))
 		{
 			write_to_output("There is no file $first_file. Exiting");
 			write_to_log("There is no file $first_file. Exiting") if($log_enable);
